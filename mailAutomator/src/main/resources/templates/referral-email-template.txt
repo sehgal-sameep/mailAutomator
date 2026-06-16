@@ -1,0 +1,19 @@
+Dear {{firstName}},
+
+I hope this message finds you well.
+
+I am reaching out to express my strong interest in an opportunity at {{companyName}} and would be incredibly grateful if you could consider referring me for the position.
+
+Position Details:
+  - Company: {{companyName}}
+  - Job ID: {{jobId}}
+  - Job Link: {{jobLink}}
+
+I have attached my resume and cover letter for your reference. I believe my background aligns well with the role, and I would love the opportunity to contribute to {{companyName}}'s team.
+
+Please feel free to reach out if you need any additional information or have any questions. I truly appreciate your time and consideration.
+
+Warm regards,
+[Your Full Name]
+[Your Phone Number]
+[Your LinkedIn Profile]

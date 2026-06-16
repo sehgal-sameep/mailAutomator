@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: mailAutomator
+
+  # ─── Gmail SMTP (App Password) ─────────────────────────────────────────────
+  # Generate an App Password at: myaccount.google.com/apppasswords
+  # (requires 2-Step Verification to be enabled on the account)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_SENDER_EMAIL:your-email@gmail.com}
+    password: ${GMAIL_APP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+# ─── Job Details ──────────────────────────────────────────────────────────────
+# Only these three values need to change per job opening.
+job:
+  company-name: ${COMPANY_NAME:Mastercard}
+  job-id: ${JOB_ID:JOB-001}
+  job-link: ${JOB_LINK:https://careers.mastercard.com/job/001}
+
+# ─── Google Sheets (Service Account) ─────────────────────────────────────────
+google:
+  sheets:
+    spreadsheet-id: ${GOOGLE_SHEET_ID:your-spreadsheet-id}
+    # Sheet tab name — convention is <companyName>_emails (e.g. mastercard_emails)
+    sheet-name: ${GOOGLE_SHEET_NAME:mastercard_emails}
+    range-suffix: "!A:F"
+    # Path to the service account JSON key file (downloaded from Google Cloud Console)
+    service-account-key-path: ${GOOGLE_SERVICE_ACCOUNT_KEY_PATH:google-service-account.json}
+
+# ─── Gmail sender identity ────────────────────────────────────────────────────
+# Used as the From: header. Must match spring.mail.username.
+gmail:
+  sender-email: ${GMAIL_SENDER_EMAIL:your-email@gmail.com}
+
+# ─── Email Content ────────────────────────────────────────────────────────────
+email:
+  subject: "Referral Request - ${job.company-name} | Job ID: ${job.job-id}"
+  template-path: ${EMAIL_TEMPLATE_PATH:templates/referral-email-template.txt}
+  resume-path: ${RESUME_PATH:files/resume.pdf}
+  cover-letter-path: ${COVER_LETTER_PATH:files/cover-letter.pdf}
+  # Set to true to preview recipients in logs without sending any emails
+  dry-run: ${DRY_RUN:false}

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.0</version>
+        <relativePath/>
+    </parent>
+    <groupId>com.codewithsam</groupId>
+    <artifactId>mailAutomator</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>mailAutomator</name>
+    <description>Automated referral email sender using Google Sheets and Gmail SMTP</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <google-api-client.version>2.2.0</google-api-client.version>
+        <google-sheets.version>v4-rev20240423-2.0.0</google-sheets.version>
+        <google-auth.version>1.24.0</google-auth.version>
+    </properties>
+
+    <dependencies>
+
+        <!-- Spring Boot Web (MVC) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+
+        <!--
+            Spring Boot Mail — auto-configures JavaMailSender using spring.mail.* properties.
+            Used to send emails via Gmail SMTP with an App Password.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <!-- Configuration Properties IDE support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <!-- Google API Client core (HTTP transport, JSON factory, Sheets.Builder) -->
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>${google-api-client.version}</version>
+        </dependency>
+
+        <!-- Google Sheets API v4 -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-sheets</artifactId>
+            <version>${google-sheets.version}</version>
+        </dependency>
+
+        <!--
+            Google Auth Library — provides GoogleCredentials and HttpCredentialsAdapter
+            for service account authentication (no browser/OAuth flow required).
+        -->
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>${google-auth.version}</version>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
