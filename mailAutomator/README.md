@@ -148,7 +148,7 @@ export GMAIL_SENDER_EMAIL=you@gmail.com
 ## How to Trigger the Referral Email API
 
 ```bash
-curl -X POST http://localhost:8080/referrals/send
+curl -X POST http://localhost:8082/referrals/send
 ```
 
 **Response:**
