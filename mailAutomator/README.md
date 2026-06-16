@@ -46,13 +46,13 @@ Controller → Manager → ManagerService → Service → ServiceImpl
 
 The sheet **tab name** must follow the pattern: `<companyName>_emails`
 
-Example: `mastercard_emails`
+Example: `acmecorp_emails`
 
 | S No | First Name | Last Name | Company Email | Personal Email | Designation |
 |---|---|---|---|---|---|
-| 1 | Vidushi | Shukla | vidushi.shukla@mastercard.com | vidushishukla005@gmail.com | |
-| 2 | Khushboo | Munjal | khushboo.munjal@mastercard.com | | Talent Advisor |
-| 3 | Ashutosh | Sharma | ashutosh.sharma@mastercard.com | ashutoshbasic95@gmail.com | TA |
+| 1 | Alice | Johnson | alice.johnson@acmecorp.com | alice.j@gmail.com | |
+| 2 | Bob | Smith | bob.smith@acmecorp.com | | Talent Advisor |
+| 3 | Carol | Williams | carol.williams@acmecorp.com | carol.w@gmail.com | TA |
 
 - **Column A** – Serial number
 - **Column B** – First name
@@ -69,11 +69,11 @@ Empty rows are skipped automatically. Rows with no valid email are skipped with 
 
 | Variable | Description | Example |
 |---|---|---|
-| `COMPANY_NAME` | Company name shown in email and sheet name | `Mastercard` |
+| `COMPANY_NAME` | Company name shown in email and sheet name | `AcmeCorp` |
 | `JOB_ID` | Job posting ID | `JR-123456` |
-| `JOB_LINK` | Full URL to the job posting | `https://careers.mastercard.com/job/123456` |
+| `JOB_LINK` | Full URL to the job posting | `https://careers.acmecorp.com/job/123456` |
 | `GOOGLE_SHEET_ID` | Spreadsheet ID from the Google Sheet URL | `1BxiM...` |
-| `GOOGLE_SHEET_NAME` | Sheet tab name (defaults to `<COMPANY_NAME>_emails`) | `mastercard_emails` |
+| `GOOGLE_SHEET_NAME` | Sheet tab name (defaults to `<COMPANY_NAME>_emails`) | `acmecorp_emails` |
 | `GMAIL_SENDER_EMAIL` | Your Gmail address | `you@gmail.com` |
 | `GMAIL_CREDENTIALS_PATH` | Path to `credentials.json` | `credentials.json` |
 | `GMAIL_TOKENS_DIR` | Directory to store OAuth tokens | `tokens` |
@@ -130,9 +130,9 @@ cd mailAutomator
 # 3. Place resume.pdf and cover-letter.pdf in src/main/resources/files/
 
 # 4. Set environment variables (or edit application.yml directly for local runs)
-export COMPANY_NAME=Mastercard
+export COMPANY_NAME=AcmeCorp
 export JOB_ID=JR-123456
-export JOB_LINK=https://careers.mastercard.com/job/123456
+export JOB_LINK=https://careers.acmecorp.com/job/123456
 export GOOGLE_SHEET_ID=your-spreadsheet-id
 export GMAIL_SENDER_EMAIL=you@gmail.com
 
@@ -181,7 +181,7 @@ export DRY_RUN=true
 
 You will see log lines like:
 ```
-[DRY RUN] Would send to: Vidushi Shukla <vidushi.shukla@mastercard.com>
+[DRY RUN] Would send to: Alice Johnson <alice.johnson@acmecorp.com>
 ```
 
 ---
@@ -211,13 +211,13 @@ Just update these three values and call the API again:
 
 ```yaml
 job:
-  company-name: Google
+  company-name: AcmeCorp
   job-id: ${JOB_ID}
   job-link: ${JOB_LINK}
 
 google:
   sheets:
-    sheet-name: google_emails
+    sheet-name: acmecorp_emails
 ```
 
 Or export the corresponding env vars and restart the app.
