@@ -10,6 +10,8 @@ Quick snapshot:
 • Experience: 1.5 years – Backend Development
 • Tech Stack: Java, Spring Boot, MySQL, PostgreSQL, Git, Azure, AWS, Kafka, Docker, Redis, Flyway, Swagger, GenAI, Agile, SDLC
 
+Please find my resume and cover letter attached for your reference. I am confident that my skills and experience make me a strong candidate, and I am eager to contribute to the success of {{companyName}}.
+
 Thank you for your time and consideration. I would be grateful for any support.
 
 --
