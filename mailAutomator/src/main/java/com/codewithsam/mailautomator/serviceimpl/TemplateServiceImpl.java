@@ -1,8 +1,9 @@
 package com.codewithsam.mailautomator.serviceimpl;
 
 import com.codewithsam.mailautomator.config.EmailProperties;
-import com.codewithsam.mailautomator.config.JobProperties;
 import com.codewithsam.mailautomator.dto.ContactDto;
+import com.codewithsam.mailautomator.dto.ReferralRequestDto;
+import com.codewithsam.mailautomator.dto.TemplateType;
 import com.codewithsam.mailautomator.exception.TemplateRenderException;
 import com.codewithsam.mailautomator.service.TemplateService;
 import com.codewithsam.mailautomator.util.TemplateRenderer;
@@ -26,21 +27,28 @@ public class TemplateServiceImpl implements TemplateService {
     private final EmailProperties emailProperties;
 
     @Override
-    public String render(ContactDto contact, JobProperties jobProperties) {
-        String templateContent = loadTemplate(emailProperties.getTemplatePath());
+    public String render(ContactDto contact, ReferralRequestDto request) {
+        String templatePath = resolveTemplatePath(request.getTemplateType());
+        String templateContent = loadTemplate(templatePath);
 
         Map<String, String> variables = new HashMap<>();
-        variables.put("firstName", contact.getFirstName());
-        variables.put("lastName", contact.getLastName());
-        variables.put("companyName", jobProperties.getCompanyName());
-        variables.put("jobId", jobProperties.getJobId());
-        variables.put("jobLink", jobProperties.getJobLink());
+        variables.put("firstName",   contact.getFirstName());
+        variables.put("lastName",    contact.getLastName());
+        variables.put("companyName", request.getCompanyName());
+        variables.put("jobId",       request.getJobId()   != null ? request.getJobId()   : "");
+        variables.put("jobLink",     request.getJobLink() != null ? request.getJobLink() : "");
 
         return TemplateRenderer.render(templateContent, variables);
     }
 
+    private String resolveTemplatePath(TemplateType type) {
+        return switch (type) {
+            case REFERRAL         -> emailProperties.getReferralTemplatePath();
+            case INTERNAL_OPENING -> emailProperties.getInternalOpeningTemplatePath();
+        };
+    }
+
     private String loadTemplate(String templatePath) {
-        // Try filesystem first (absolute or working-directory-relative path)
         File file = new File(templatePath);
         if (file.exists()) {
             try {
@@ -52,7 +60,6 @@ public class TemplateServiceImpl implements TemplateService {
             }
         }
 
-        // Fall back to classpath (e.g. src/main/resources/templates/...)
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(templatePath)) {
             if (is == null) {
                 throw new TemplateRenderException(

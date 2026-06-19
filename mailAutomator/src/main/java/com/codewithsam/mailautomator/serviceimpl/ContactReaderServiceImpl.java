@@ -21,32 +21,30 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ContactReaderServiceImpl implements ContactReaderService {
 
-    private static final int COL_SERIAL       = 0;
-    private static final int COL_FIRST_NAME   = 1;
-    private static final int COL_LAST_NAME    = 2;
-    private static final int COL_COMPANY_EMAIL = 3;
+    private static final int COL_SERIAL         = 0;
+    private static final int COL_FIRST_NAME     = 1;
+    private static final int COL_LAST_NAME      = 2;
+    private static final int COL_COMPANY_EMAIL  = 3;
     private static final int COL_PERSONAL_EMAIL = 4;
-    private static final int COL_DESIGNATION  = 5;
+    private static final int COL_DESIGNATION    = 5;
 
     private final Sheets sheetsService;
     private final GoogleProperties googleProperties;
 
     @Override
-    public List<ContactDto> readContacts() {
-        String spreadsheetId = googleProperties.getSheets().getSpreadsheetId();
-        String range = googleProperties.getSheets().getSheetName()
-                + googleProperties.getSheets().getRangeSuffix();
+    public List<ContactDto> readContacts(String sheetId, String tabName) {
+        String range = tabName + googleProperties.getSheets().getRangeSuffix();
 
-        log.info("Reading contacts from Google Sheet [id={}], range: {}", spreadsheetId, range);
+        log.info("Reading contacts from Google Sheet [id={}], range: {}", sheetId, range);
 
         ValueRange response;
         try {
             response = sheetsService.spreadsheets().values()
-                    .get(spreadsheetId, range)
+                    .get(sheetId, range)
                     .execute();
         } catch (IOException ex) {
             throw new GoogleSheetReadException(
-                    "Failed to read Google Sheet (id=" + spreadsheetId + "): " + ex.getMessage(), ex);
+                    "Failed to read Google Sheet (id=" + sheetId + "): " + ex.getMessage(), ex);
         }
 
         List<List<Object>> rows = response.getValues();
@@ -58,7 +56,7 @@ public class ContactReaderServiceImpl implements ContactReaderService {
         log.info("Google Sheet read complete — {} rows found (including header)", rows.size());
 
         List<ContactDto> contacts = rows.stream()
-                .skip(1)                           // skip header row
+                .skip(1)
                 .filter(row -> !isEmptyRow(row))
                 .map(this::parseRow)
                 .filter(Objects::nonNull)

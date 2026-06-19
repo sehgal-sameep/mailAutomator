@@ -2,10 +2,10 @@
 
 Automated referral email sender. Reads candidate details from a Google Sheet and
 sends personalized referral request emails (with resume + cover letter attachments)
-via the Gmail API.
+via Gmail SMTP.
 
-Designed for one trigger per job opening — just update the job details in
-`application.yml` (or env vars) and call the API.
+No restart needed to target a different company or job — all job and sheet details
+are passed dynamically via the API request payload.
 
 ---
 
@@ -15,10 +15,10 @@ Designed for one trigger per job opening — just update the job details in
 |---|---|
 | Framework | Spring Boot 4.x (Java 17) |
 | Google Sheets | Google Sheets API v4 |
-| Email sending | Gmail API v1 |
-| Auth | Google OAuth 2.0 (installed app flow) |
+| Email sending | Gmail SMTP (App Password) |
+| Auth | Google Service Account (JSON key) |
 | Build | Maven |
-| Utilities | Lombok |
+| Utilities | Lombok, springdoc-openapi |
 
 ---
 
@@ -35,16 +35,46 @@ Controller → Manager → ManagerService → Service → ServiceImpl
 | `managerservice` | Business coordination (contacts → template → send) |
 | `service` | Core service contracts (interfaces) |
 | `serviceimpl` | Actual implementations |
-| `config` | External config properties + Google API beans |
+| `config` | Static config properties + Google API beans |
 | `util` | Email validation, template rendering |
-| `dto` | Data transfer objects |
+| `dto` | Data transfer objects (`ReferralRequestDto`, `ReferralSummaryDto`, `ContactDto`) |
 | `exception` | Custom exceptions + global handler |
+
+---
+
+## What comes from the API payload vs application.yml
+
+### Passed per-request (API payload)
+
+These values change per job opening and are sent in the request body — no restart required:
+
+| Field | Description |
+|---|---|
+| `companyName` | Company name used in email subject and template |
+| `jobId` | Job posting ID used in email subject and template |
+| `jobLink` | Full URL to the job posting used in template |
+| `sheetId` | Google Sheet spreadsheet ID |
+| `tabName` | Sheet tab name containing the contacts |
+
+### Static config (application.yml / env vars)
+
+These are system-level settings that stay fixed across all requests:
+
+| Property / Env Var | Description |
+|---|---|
+| `GMAIL_SENDER_EMAIL` / `spring.mail.username` | Gmail address used to send emails |
+| `GMAIL_APP_PASSWORD` / `spring.mail.password` | Gmail App Password |
+| `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` | Path to GCP service account JSON key |
+| `EMAIL_TEMPLATE_PATH` | Path to the `.txt` email template |
+| `RESUME_PATH` | Path to resume PDF attachment |
+| `COVER_LETTER_PATH` | Path to cover letter PDF attachment |
+| `DRY_RUN` | `true` to log recipients without sending |
 
 ---
 
 ## Google Sheet Format
 
-The sheet **tab name** must follow the pattern: `<companyName>_emails`
+The sheet tab name is passed in the request (`tabName`). Convention: `<companyName>_emails`
 
 Example: `acmecorp_emails`
 
@@ -57,33 +87,130 @@ Example: `acmecorp_emails`
 - **Column A** – Serial number
 - **Column B** – First name
 - **Column C** – Last name
-- **Column D** – Company email *(used as primary)*
-- **Column E** – Personal email *(fallback if company email is blank)*
-- **Column F** – Designation *(optional)*
+- **Column D** – Company email
+- **Column E** – Personal email
 
-Empty rows are skipped automatically. Rows with no valid email are skipped with a warning.
+### Email sending behavior per row
+
+- If **only company email** is present → one email sent to company email
+- If **only personal email** is present → one email sent to personal email
+- If **both** are present → **two separate emails sent**, one to each address
+- If both are the same address → only one email sent (deduplication)
+- If both are missing or invalid → row is skipped with a warning
+
+The same deduplication applies globally across all rows: if the same address appears in multiple rows, it receives only one email per run.
+
+Empty rows are skipped automatically.
 
 ---
 
-## Required Environment Variables
+## API Reference
 
-| Variable | Description | Example |
-|---|---|---|
-| `COMPANY_NAME` | Company name shown in email and sheet name | `AcmeCorp` |
-| `JOB_ID` | Job posting ID | `JR-123456` |
-| `JOB_LINK` | Full URL to the job posting | `https://careers.acmecorp.com/job/123456` |
-| `GOOGLE_SHEET_ID` | Spreadsheet ID from the Google Sheet URL | `1BxiM...` |
-| `GOOGLE_SHEET_NAME` | Sheet tab name (defaults to `<COMPANY_NAME>_emails`) | `acmecorp_emails` |
-| `GMAIL_SENDER_EMAIL` | Your Gmail address | `you@gmail.com` |
-| `GMAIL_CREDENTIALS_PATH` | Path to `credentials.json` | `credentials.json` |
-| `GMAIL_TOKENS_DIR` | Directory to store OAuth tokens | `tokens` |
-| `EMAIL_TEMPLATE_PATH` | Path to `.txt` email template | `templates/referral-email-template.txt` |
-| `RESUME_PATH` | Path to resume PDF | `files/resume.pdf` |
-| `COVER_LETTER_PATH` | Path to cover letter PDF | `files/cover-letter.pdf` |
-| `DRY_RUN` | `true` to preview without sending | `false` |
+### POST `/referrals/send`
 
-> You can override any of these in `application.yml` directly for local development
-> (just avoid committing actual credentials).
+Triggers the referral email send flow. All job and sheet details are passed in the request body.
+
+**Request payload — REFERRAL:**
+
+```json
+{
+  "companyName": "AcmeCorp",
+  "templateType": "REFERRAL",
+  "jobId": "JR-123456",
+  "jobLink": "https://careers.acmecorp.com/job/123456",
+  "sheetId": "your-google-spreadsheet-id",
+  "tabName": "acmecorp_emails"
+}
+```
+
+**Request payload — INTERNAL_OPENING:**
+
+```json
+{
+  "companyName": "AcmeCorp",
+  "templateType": "INTERNAL_OPENING",
+  "sheetId": "your-google-spreadsheet-id",
+  "tabName": "acmecorp_emails"
+}
+```
+
+**Field validation:**
+
+| Field | Rule |
+|---|---|
+| `companyName` | Required, not blank |
+| `templateType` | Required — `REFERRAL` or `INTERNAL_OPENING` |
+| `jobId` | Required when `templateType` is `REFERRAL`; ignored for `INTERNAL_OPENING` |
+| `jobLink` | Required when `templateType` is `REFERRAL`; must be a valid URL; ignored for `INTERNAL_OPENING` |
+| `sheetId` | Required, not blank |
+| `tabName` | Required, not blank |
+
+**Successful response (200):**
+
+```json
+{
+  "totalRecords": 7,
+  "totalRecipients": 11,
+  "emailsSent": 10,
+  "rowsSkipped": 1,
+  "duplicatesSkipped": 0,
+  "failedEmails": []
+}
+```
+
+| Response field | Meaning |
+|---|---|
+| `totalRecords` | Rows read from the Google Sheet (excluding header) |
+| `totalRecipients` | Total valid email addresses found across all contacts |
+| `emailsSent` | Emails successfully sent |
+| `rowsSkipped` | Contacts skipped because no valid email was found |
+| `duplicatesSkipped` | Addresses skipped because already sent to in this run |
+| `failedEmails` | Addresses that threw an error during sending |
+
+**Validation error response (400):**
+
+```json
+{
+  "error": "Validation failed",
+  "fieldErrors": {
+    "jobLink": "jobLink must be a valid URL starting with http:// or https://"
+  }
+}
+```
+
+**Swagger UI:** `http://localhost:8082/swagger-ui/index.html`
+
+---
+
+## Sending emails for different companies without restarting
+
+Just change the payload — the service keeps running:
+
+**First call — AcmeCorp:**
+```bash
+curl -X POST http://localhost:8082/referrals/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyName": "AcmeCorp",
+    "jobId": "JR-100",
+    "jobLink": "https://careers.acmecorp.com/job/100",
+    "sheetId": "sheet-id-for-acmecorp",
+    "tabName": "acmecorp_emails"
+  }'
+```
+
+**Second call — TechCorp (no restart needed):**
+```bash
+curl -X POST http://localhost:8082/referrals/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyName": "TechCorp",
+    "jobId": "TC-999",
+    "jobLink": "https://jobs.techcorp.io/999",
+    "sheetId": "sheet-id-for-techcorp",
+    "tabName": "techcorp_emails"
+  }'
+```
 
 ---
 
@@ -95,28 +222,26 @@ Empty rows are skipped automatically. Rows with no valid email are skipped with 
 2. Create a new project (or select an existing one)
 3. Navigate to **APIs & Services → Library**
 4. Enable **Google Sheets API**
-5. Enable **Gmail API**
 
-### Step 2 — Create OAuth2 Credentials
+### Step 2 — Create a Service Account Key
 
-1. Go to **APIs & Services → Credentials**
-2. Click **Create Credentials → OAuth 2.0 Client ID**
-3. Set Application type to **Desktop app**
-4. Download the JSON file and rename it to `credentials.json`
-5. Place it in your project root (same directory as `pom.xml`)
+1. Go to **IAM & Admin → Service Accounts**
+2. Create a service account (or select existing)
+3. Click **Keys → Add Key → Create new key → JSON**
+4. Save the downloaded file as `google-service-account.json`
+5. Place it in the `mailAutomator/` directory (next to `pom.xml`)
+6. Set `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` if using a different path
 
-### Step 3 — First-Run Authorization
+### Step 3 — Share each Google Sheet with the service account
 
-On first startup, a browser window will open for you to log in and grant
-access to Sheets (read) and Gmail (send). Tokens are stored in the `tokens/`
-directory. All subsequent runs use the stored token automatically.
+Open the sheet → **Share** → paste the service account email
+(found in the JSON key as `client_email`) → set role to **Viewer**.
 
-> If you get a "This app isn't verified" warning, click **Advanced → Go to app (unsafe)** — this is your own app.
+### Step 4 — Generate a Gmail App Password
 
-### Step 4 — Share the Google Sheet
-
-Share your Google Sheet with the Gmail account you authorized (or keep it
-accessible to anyone with the link).
+1. Enable 2-Step Verification on your Google account
+2. Go to `myaccount.google.com/apppasswords`
+3. Generate a password and set it as `GMAIL_APP_PASSWORD`
 
 ---
 
@@ -126,40 +251,20 @@ accessible to anyone with the link).
 # 1. Clone / open the project
 cd mailAutomator
 
-# 2. Place your credentials.json in the project root
-# 3. Place resume.pdf and cover-letter.pdf in src/main/resources/files/
+# 2. Place google-service-account.json next to pom.xml
 
-# 4. Set environment variables (or edit application.yml directly for local runs)
-export COMPANY_NAME=AcmeCorp
-export JOB_ID=JR-123456
-export JOB_LINK=https://careers.acmecorp.com/job/123456
-export GOOGLE_SHEET_ID=your-spreadsheet-id
+# 3. Place resume and cover letter files (paths configured in application.yml)
+
+# 4. Set required environment variables
 export GMAIL_SENDER_EMAIL=you@gmail.com
+export GMAIL_APP_PASSWORD=your-app-password
+export GOOGLE_SERVICE_ACCOUNT_KEY_PATH=google-service-account.json
 
 # 5. Build
 ./mvnw clean package
 
 # 6. Run
 ./mvnw spring-boot:run
-```
-
----
-
-## How to Trigger the Referral Email API
-
-```bash
-curl -X POST http://localhost:8082/referrals/send
-```
-
-**Response:**
-
-```json
-{
-  "totalRecords": 7,
-  "emailsSent": 6,
-  "emailsSkipped": 1,
-  "failedEmails": []
-}
 ```
 
 ---
@@ -186,41 +291,26 @@ You will see log lines like:
 
 ---
 
-## Email Template
+## Email Templates
 
-The default template lives at `src/main/resources/templates/referral-email-template.txt`.
+The template used is selected automatically based on `templateType` in the request.
 
-Supported placeholders:
+| `templateType` | Template file | Email subject |
+|---|---|---|
+| `REFERRAL` | `templates/referral-email-template.txt` | `Referral Request - <companyName> \| Job ID: <jobId>` |
+| `INTERNAL_OPENING` | `templates/internal-opening-email-template.txt` | `Internal Openings Enquiry - <companyName>` |
+
+**Supported placeholders (both templates):**
 
 | Placeholder | Value |
 |---|---|
 | `{{firstName}}` | Contact's first name |
 | `{{lastName}}` | Contact's last name |
-| `{{companyName}}` | From `job.company-name` |
-| `{{jobId}}` | From `job.job-id` |
-| `{{jobLink}}` | From `job.job-link` |
+| `{{companyName}}` | From request payload |
+| `{{jobId}}` | From request payload — blank for `INTERNAL_OPENING` |
+| `{{jobLink}}` | From request payload — blank for `INTERNAL_OPENING` |
 
-To use a custom template, set `email.template-path` to any file path on your
-filesystem (absolute or relative to the working directory).
-
----
-
-## Switching to a New Job Opening
-
-Just update these three values and call the API again:
-
-```yaml
-job:
-  company-name: AcmeCorp
-  job-id: ${JOB_ID}
-  job-link: ${JOB_LINK}
-
-google:
-  sheets:
-    sheet-name: acmecorp_emails
-```
-
-Or export the corresponding env vars and restart the app.
+To override template paths, set `REFERRAL_TEMPLATE_PATH` or `INTERNAL_OPENING_TEMPLATE_PATH` to any filesystem path.
 
 ---
 
@@ -228,11 +318,10 @@ Or export the corresponding env vars and restart the app.
 
 | Problem | Fix |
 |---|---|
-| `credentials.json not found` | Make sure the file is in the path set by `GMAIL_CREDENTIALS_PATH` |
-| Browser doesn't open for auth | Run the app locally; headless servers cannot complete the OAuth flow |
-| `Token has been expired or revoked` | Delete the `tokens/` directory and re-authorize |
-| `Google Sheet not found` | Verify `GOOGLE_SHEET_ID` and `GOOGLE_SHEET_NAME` match exactly |
+| `403 Forbidden` from Sheets API | Share the Google Sheet with the service account `client_email` |
+| `Unable to parse range: <tabName>!A:E` | The tab name in `tabName` doesn't match any tab in the sheet |
+| `Google service account key not found` | Check `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` points to the correct file |
+| `400 Validation failed` | Check the API response `fieldErrors` for which field is invalid |
 | Email skipped with "no valid email" | The row has both company and personal email blank — add at least one |
 | Attachment not included | Check that `RESUME_PATH` / `COVER_LETTER_PATH` point to existing files |
-| `403 Forbidden` from Gmail API | Re-check that the Gmail API is enabled in your Google Cloud project |
-| Port 8888 already in use during auth | Change the `LocalServerReceiver` port in `GoogleApiConfig.java` |
+| `403 Forbidden` from Gmail SMTP | Check `GMAIL_APP_PASSWORD` is correct and 2-Step Verification is on |

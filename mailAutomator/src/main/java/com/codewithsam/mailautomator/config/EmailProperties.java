@@ -7,8 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 public class EmailProperties {
 
-    private String subject;
-    private String templatePath;
+    private String referralTemplatePath;
+    private String internalOpeningTemplatePath;
     private String resumePath;
     private String coverLetterPath;
     /** When true, logs recipients but skips actual sending */

@@ -1,5 +1,6 @@
 package com.codewithsam.mailautomator.managerservice;
 
+import com.codewithsam.mailautomator.dto.ReferralRequestDto;
 import com.codewithsam.mailautomator.dto.ReferralSummaryDto;
 
 public interface ReferralManagerService {
@@ -8,5 +9,5 @@ public interface ReferralManagerService {
      * Coordinates the full referral send flow:
      * reads contacts → validates → renders templates → sends emails → returns summary.
      */
-    ReferralSummaryDto sendReferralEmails();
+    ReferralSummaryDto sendReferralEmails(ReferralRequestDto request);
 }

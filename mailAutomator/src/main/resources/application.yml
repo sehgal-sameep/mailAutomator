@@ -21,19 +21,11 @@ spring:
             enable: true
             required: true
 
-# ─── Job Details ──────────────────────────────────────────────────────────────
-# Only these three values need to change per job opening.
-job:
-  company-name: ${COMPANY_NAME:Mastercard}
-  job-id: ${JOB_ID:JOB-001}
-  job-link: ${JOB_LINK:https://careers.mastercard.com/job/001}
-
 # ─── Google Sheets (Service Account) ─────────────────────────────────────────
+# sheetId and tabName are now passed per-request via the API payload.
+# Only structural config lives here.
 google:
   sheets:
-    spreadsheet-id: ${GOOGLE_SHEET_ID:your-spreadsheet-id}
-    # Sheet tab name — convention is <companyName>_emails (e.g. mastercard_emails)
-    sheet-name: ${GOOGLE_SHEET_NAME:mastercard_emails}
     range-suffix: "!A:F"
     # Path to the service account JSON key file (downloaded from Google Cloud Console)
     service-account-key-path: ${GOOGLE_SERVICE_ACCOUNT_KEY_PATH:google-service-account.json}
@@ -44,10 +36,12 @@ gmail:
   sender-email: ${GMAIL_SENDER_EMAIL:your-email@gmail.com}
 
 # ─── Email Content ────────────────────────────────────────────────────────────
+# subject and template are selected dynamically based on templateType in the request payload.
+# companyName, jobId, jobLink, sheetId, tabName, templateType are all passed per-request.
 email:
-  subject: "Referral Request - ${job.company-name} | Job ID: ${job.job-id}"
-  template-path: ${EMAIL_TEMPLATE_PATH:templates/referral-email-template.txt}
-  resume-path: ${RESUME_PATH:files/resume.pdf}
-  cover-letter-path: ${COVER_LETTER_PATH:files/cover-letter.pdf}
+  referral-template-path: ${REFERRAL_TEMPLATE_PATH:templates/referral-email-template.txt}
+  internal-opening-template-path: ${INTERNAL_OPENING_TEMPLATE_PATH:templates/internal-opening-email-template.txt}
+  resume-path: ${RESUME_PATH:resume_sameep_sehgal.pdf}
+  cover-letter-path: ${COVER_LETTER_PATH:cover_letter_sameep_sehgal.pdf}
   # Set to true to preview recipients in logs without sending any emails
   dry-run: ${DRY_RUN:false}

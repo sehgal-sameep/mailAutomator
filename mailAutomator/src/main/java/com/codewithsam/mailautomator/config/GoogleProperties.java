@@ -11,10 +11,8 @@ public class GoogleProperties {
 
     @Data
     public static class Sheets {
-        private String spreadsheetId;
-        private String sheetName;
-        /** Appended to sheetName when building the A1 range, e.g. "!A:F" */
-        private String rangeSuffix = "!A:F";
+        /** Appended to the tab name when building the A1 range, e.g. "!A:E" */
+        private String rangeSuffix = "!A:E";
         /** Path to the service account JSON key file downloaded from Google Cloud Console */
         private String serviceAccountKeyPath;
     }

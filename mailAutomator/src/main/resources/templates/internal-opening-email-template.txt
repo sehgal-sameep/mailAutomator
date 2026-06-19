@@ -4,12 +4,7 @@ Hope you are doing well! Great to see you at {{companyName}}.
 
 I am Sameep Sehgal, a Software Engineer with 1.5 years of experience in Java backend development.
 
-I came across the Software Engineer opening at your organisation and found it closely aligned with my experience and skill set.
-
-Job Link: {{jobLink}}
-Job ID: {{jobId}}
-
-I would greatly appreciate it if you could review my profile and consider referring me for this position.
+I wanted to reach out and check if there are any suitable internal openings at {{companyName}} that align with my profile. I would greatly appreciate it if you could consider referring me for any relevant positions.
 
 Quick snapshot:
 • Experience: 1.5 years – Backend Development
