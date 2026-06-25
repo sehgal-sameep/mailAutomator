@@ -28,15 +28,28 @@ public class TemplateServiceImpl implements TemplateService {
 
     @Override
     public String render(ContactDto contact, ReferralRequestDto request) {
-        String templatePath = resolveTemplatePath(request.getTemplateType());
+        return render(
+                contact.getFirstName(),
+                contact.getLastName(),
+                request.getCompanyName(),
+                request.getJobId(),
+                request.getJobLink(),
+                request.getTemplateType()
+        );
+    }
+
+    @Override
+    public String render(String firstName, String lastName, String companyName,
+                         String jobId, String jobLink, TemplateType templateType) {
+        String templatePath = resolveTemplatePath(templateType);
         String templateContent = loadTemplate(templatePath);
 
         Map<String, String> variables = new HashMap<>();
-        variables.put("firstName",   contact.getFirstName());
-        variables.put("lastName",    contact.getLastName());
-        variables.put("companyName", request.getCompanyName());
-        variables.put("jobId",       request.getJobId()   != null ? request.getJobId()   : "");
-        variables.put("jobLink",     request.getJobLink() != null ? request.getJobLink() : "");
+        variables.put("firstName",   firstName  != null ? firstName  : "");
+        variables.put("lastName",    lastName   != null ? lastName   : "");
+        variables.put("companyName", companyName != null ? companyName : "");
+        variables.put("jobId",       jobId      != null ? jobId      : "");
+        variables.put("jobLink",     jobLink    != null ? jobLink    : "");
 
         return TemplateRenderer.render(templateContent, variables);
     }

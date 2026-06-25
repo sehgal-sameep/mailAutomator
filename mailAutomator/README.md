@@ -1,11 +1,14 @@
 # Mail Automator
 
-Automated referral email sender. Reads candidate details from a Google Sheet and
-sends personalized referral request emails (with resume + cover letter attachments)
-via Gmail SMTP.
+Automated referral email sender. Sends personalized referral request emails
+(with resume + cover letter attachments) via Gmail SMTP.
 
-No restart needed to target a different company or job — all job and sheet details
-are passed dynamically via the API request payload.
+Supports two modes:
+
+- **Google Sheet mode** — reads recipient details from a Google Sheet tab
+- **Manual mode** — accepts recipient details directly in the API request body (no sheet required)
+
+No restart needed to target a different company or job — all details are passed dynamically via the API payload.
 
 ---
 
@@ -37,7 +40,7 @@ Controller → Manager → ManagerService → Service → ServiceImpl
 | `serviceimpl` | Actual implementations |
 | `config` | Static config properties + Google API beans |
 | `util` | Email validation, template rendering |
-| `dto` | Data transfer objects (`ReferralRequestDto`, `ReferralSummaryDto`, `ContactDto`) |
+| `dto` | Data transfer objects — request/response DTOs for both send modes |
 | `exception` | Custom exceptions + global handler |
 
 ---
@@ -106,9 +109,9 @@ Empty rows are skipped automatically.
 
 ## API Reference
 
-### POST `/referrals/send`
+### POST `/referrals/send` — Google Sheet mode
 
-Triggers the referral email send flow. All job and sheet details are passed in the request body.
+Reads contacts from the given Google Sheet tab and sends personalized referral emails.
 
 **Request payload — REFERRAL:**
 
@@ -167,6 +170,74 @@ Triggers the referral email send flow. All job and sheet details are passed in t
 | `duplicatesSkipped` | Addresses skipped because already sent to in this run |
 | `failedEmails` | Addresses that threw an error during sending |
 
+---
+
+### POST `/referrals/send/manual` — Manual mode
+
+Sends referral emails to recipients supplied directly in the request body. No Google Sheet required — useful for quick, small batches.
+
+**Request payload:**
+
+```json
+{
+  "companyName": "Mastercard",
+  "jobId": "R-123456",
+  "jobLink": "https://careers.mastercard.com/job/example",
+  "recipients": [
+    {
+      "firstName": "Vidushi",
+      "lastName": "Shukla",
+      "emails": [
+        "vidushi.shukla@mastercard.com",
+        "vidushishukla005@gmail.com"
+      ]
+    },
+    {
+      "firstName": "Khushboo",
+      "emails": [
+        "khushboo.munjal@mastercard.com"
+      ]
+    }
+  ]
+}
+```
+
+**Field validation:**
+
+| Field | Rule |
+|---|---|
+| `companyName` | Required, not blank |
+| `jobId` | Required, not blank |
+| `jobLink` | Required; must be a valid URL starting with `http://` or `https://` |
+| `recipients` | Required; must not be empty |
+| `recipients[].firstName` | Required, not blank |
+| `recipients[].lastName` | Optional |
+| `recipients[].emails` | Required; must contain at least one entry |
+
+Individual email addresses with invalid format are silently skipped (counted in `emailsSkipped`). Recipients where none of the supplied addresses are valid are also skipped.
+
+**Successful response (200):**
+
+```json
+{
+  "totalRecipients": 2,
+  "totalEmailAddresses": 3,
+  "emailsSent": 3,
+  "emailsSkipped": 0,
+  "duplicateEmailsSkipped": 0,
+  "failedEmails": []
+}
+```
+
+| Response field | Meaning |
+|---|---|
+| `totalRecipients` | Number of recipient objects in the request |
+| `totalEmailAddresses` | Total valid email addresses across all recipients |
+| `emailsSent` | Emails successfully sent |
+| `emailsSkipped` | Recipients skipped because no valid email address was found |
+| `duplicateEmailsSkipped` | Addresses skipped because already sent to in this run |
+| `failedEmails` | Addresses that threw an error during sending |
+
 **Validation error response (400):**
 
 ```json
@@ -184,14 +255,15 @@ Triggers the referral email send flow. All job and sheet details are passed in t
 
 ## Sending emails for different companies without restarting
 
-Just change the payload — the service keeps running:
+Just change the payload — the service keeps running.
 
-**First call — AcmeCorp:**
+**Sheet mode — AcmeCorp:**
 ```bash
 curl -X POST http://localhost:8082/referrals/send \
   -H "Content-Type: application/json" \
   -d '{
     "companyName": "AcmeCorp",
+    "templateType": "REFERRAL",
     "jobId": "JR-100",
     "jobLink": "https://careers.acmecorp.com/job/100",
     "sheetId": "sheet-id-for-acmecorp",
@@ -199,16 +271,25 @@ curl -X POST http://localhost:8082/referrals/send \
   }'
 ```
 
-**Second call — TechCorp (no restart needed):**
+**Manual mode — quick batch without a sheet:**
 ```bash
-curl -X POST http://localhost:8082/referrals/send \
+curl -X POST http://localhost:8082/referrals/send/manual \
   -H "Content-Type: application/json" \
   -d '{
     "companyName": "TechCorp",
     "jobId": "TC-999",
     "jobLink": "https://jobs.techcorp.io/999",
-    "sheetId": "sheet-id-for-techcorp",
-    "tabName": "techcorp_emails"
+    "recipients": [
+      {
+        "firstName": "Alice",
+        "lastName": "Johnson",
+        "emails": ["alice.johnson@techcorp.io", "alice.j@gmail.com"]
+      },
+      {
+        "firstName": "Bob",
+        "emails": ["bob.smith@techcorp.io"]
+      }
+    ]
   }'
 ```
 

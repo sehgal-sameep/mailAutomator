@@ -1,5 +1,7 @@
 package com.codewithsam.mailautomator.manager;
 
+import com.codewithsam.mailautomator.dto.ManualReferralRequestDto;
+import com.codewithsam.mailautomator.dto.ManualReferralSummaryDto;
 import com.codewithsam.mailautomator.dto.ReferralRequestDto;
 import com.codewithsam.mailautomator.dto.ReferralSummaryDto;
 import com.codewithsam.mailautomator.managerservice.ReferralManagerService;
@@ -15,9 +17,16 @@ public class ReferralManager {
     private final ReferralManagerService referralManagerService;
 
     public ReferralSummaryDto orchestrateSendReferrals(ReferralRequestDto request) {
-        log.info("ReferralManager: initiating referral send flow for company={}", request.getCompanyName());
+        log.info("ReferralManager: initiating sheet-based referral send flow for company={}", request.getCompanyName());
         ReferralSummaryDto summary = referralManagerService.sendReferralEmails(request);
-        log.info("ReferralManager: flow complete — {}", summary);
+        log.info("ReferralManager: sheet-based flow complete — {}", summary);
+        return summary;
+    }
+
+    public ManualReferralSummaryDto orchestrateSendReferralsManual(ManualReferralRequestDto request) {
+        log.info("ReferralManager: initiating manual referral send flow for company={}", request.getCompanyName());
+        ManualReferralSummaryDto summary = referralManagerService.sendReferralEmailsManual(request);
+        log.info("ReferralManager: manual flow complete — {}", summary);
         return summary;
     }
 }

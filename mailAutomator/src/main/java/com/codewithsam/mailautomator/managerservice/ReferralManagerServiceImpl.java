@@ -2,6 +2,9 @@ package com.codewithsam.mailautomator.managerservice;
 
 import com.codewithsam.mailautomator.config.EmailProperties;
 import com.codewithsam.mailautomator.dto.ContactDto;
+import com.codewithsam.mailautomator.dto.ManualReferralRequestDto;
+import com.codewithsam.mailautomator.dto.ManualReferralSummaryDto;
+import com.codewithsam.mailautomator.dto.RecipientDto;
 import com.codewithsam.mailautomator.dto.ReferralRequestDto;
 import com.codewithsam.mailautomator.dto.ReferralSummaryDto;
 import com.codewithsam.mailautomator.dto.TemplateType;
@@ -30,6 +33,10 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
     private final TemplateService templateService;
     private final EmailProperties emailProperties;
 
+    // -------------------------------------------------------------------------
+    // Sheet-based flow
+    // -------------------------------------------------------------------------
+
     @Override
     public ReferralSummaryDto sendReferralEmails(ReferralRequestDto request) {
         log.info("Starting referral email process — company: {}, jobId: {}, sheet: {}/{}",
@@ -49,14 +56,14 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
         }
 
         log.info("Process complete — records: {}, recipients: {}, sent: {}, rowsSkipped: {}, duplicates: {}, failed: {}",
-                contacts.size(), ctx.totalRecipients, ctx.emailsSent,
-                ctx.rowsSkipped, ctx.duplicatesSkipped, ctx.failedEmails.size());
+                contacts.size(), ctx.totalEmailAddresses, ctx.emailsSent,
+                ctx.itemsSkipped, ctx.duplicatesSkipped, ctx.failedEmails.size());
 
         return ReferralSummaryDto.builder()
                 .totalRecords(contacts.size())
-                .totalRecipients(ctx.totalRecipients)
+                .totalRecipients(ctx.totalEmailAddresses)
                 .emailsSent(ctx.emailsSent)
-                .rowsSkipped(ctx.rowsSkipped)
+                .rowsSkipped(ctx.itemsSkipped)
                 .duplicatesSkipped(ctx.duplicatesSkipped)
                 .failedEmails(ctx.failedEmails)
                 .build();
@@ -69,12 +76,12 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
 
         if (validAddresses.isEmpty()) {
             log.warn("Skipping '{}' — no valid email address found", contact.getFullName());
-            ctx.rowsSkipped++;
+            ctx.itemsSkipped++;
             return;
         }
 
         log.info("'{}' — {} valid address(es): {}", contact.getFullName(), validAddresses.size(), validAddresses);
-        ctx.totalRecipients += validAddresses.size();
+        ctx.totalEmailAddresses += validAddresses.size();
 
         String body = emailProperties.isDryRun() ? null : templateService.render(contact, request);
 
@@ -82,6 +89,80 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
             dispatchEmail(email, contact.getFullName(), body, ctx);
         }
     }
+
+    private String buildSubject(ReferralRequestDto request) {
+        return switch (request.getTemplateType()) {
+            case REFERRAL         -> "Referral Request - " + request.getCompanyName() + " | Job ID: " + request.getJobId();
+            case INTERNAL_OPENING -> "Internal Openings Enquiry - " + request.getCompanyName();
+        };
+    }
+
+    // -------------------------------------------------------------------------
+    // Manual flow
+    // -------------------------------------------------------------------------
+
+    @Override
+    public ManualReferralSummaryDto sendReferralEmailsManual(ManualReferralRequestDto request) {
+        log.info("Starting manual referral email process — company: {}, jobId: {}, recipients: {}",
+                request.getCompanyName(), request.getJobId(), request.getRecipients().size());
+
+        if (emailProperties.isDryRun()) {
+            log.info("[DRY RUN MODE] No emails will be sent");
+        }
+
+        String subject = "Referral Request - " + request.getCompanyName() + " | Job ID: " + request.getJobId();
+        RunContext ctx = new RunContext(subject, resolveAttachments());
+
+        for (RecipientDto recipient : request.getRecipients()) {
+            processRecipient(recipient, request, ctx);
+        }
+
+        log.info("Manual process complete — recipients: {}, emailAddresses: {}, sent: {}, skipped: {}, duplicates: {}, failed: {}",
+                request.getRecipients().size(), ctx.totalEmailAddresses, ctx.emailsSent,
+                ctx.itemsSkipped, ctx.duplicatesSkipped, ctx.failedEmails.size());
+
+        return ManualReferralSummaryDto.builder()
+                .totalRecipients(request.getRecipients().size())
+                .totalEmailAddresses(ctx.totalEmailAddresses)
+                .emailsSent(ctx.emailsSent)
+                .emailsSkipped(ctx.itemsSkipped)
+                .duplicateEmailsSkipped(ctx.duplicatesSkipped)
+                .failedEmails(ctx.failedEmails)
+                .build();
+    }
+
+    private void processRecipient(RecipientDto recipient, ManualReferralRequestDto request, RunContext ctx) {
+        String fullName = buildFullName(recipient.getFirstName(), recipient.getLastName());
+
+        List<String> validAddresses = recipient.getEmails().stream()
+                .filter(e -> e != null && !e.isBlank())
+                .map(String::trim)
+                .distinct()
+                .filter(EmailValidator::isValid)
+                .toList();
+
+        if (validAddresses.isEmpty()) {
+            log.warn("Skipping '{}' — no valid email address found", fullName);
+            ctx.itemsSkipped++;
+            return;
+        }
+
+        log.info("'{}' — {} valid address(es): {}", fullName, validAddresses.size(), validAddresses);
+        ctx.totalEmailAddresses += validAddresses.size();
+
+        String body = emailProperties.isDryRun() ? null
+                : templateService.render(recipient.getFirstName(), recipient.getLastName(),
+                                         request.getCompanyName(), request.getJobId(),
+                                         request.getJobLink(), TemplateType.REFERRAL);
+
+        for (String email : validAddresses) {
+            dispatchEmail(email, fullName, body, ctx);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Shared helpers
+    // -------------------------------------------------------------------------
 
     private void dispatchEmail(String email, String contactName, String body, RunContext ctx) {
         String key = email.toLowerCase();
@@ -109,13 +190,6 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
             log.error("Failed to send email to {} <{}>: {}", contactName, email, ex.getMessage());
             ctx.failedEmails.add(email);
         }
-    }
-
-    private String buildSubject(ReferralRequestDto request) {
-        return switch (request.getTemplateType()) {
-            case REFERRAL         -> "Referral Request - " + request.getCompanyName() + " | Job ID: " + request.getJobId();
-            case INTERNAL_OPENING -> "Internal Openings Enquiry - " + request.getCompanyName();
-        };
     }
 
     private List<File> resolveAttachments() {
@@ -148,17 +222,23 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
         }
     }
 
-    /** Mutable run-scoped state passed through the processing methods to avoid a long parameter list. */
+    private static String buildFullName(String firstName, String lastName) {
+        String first = firstName != null ? firstName.trim() : "";
+        String last  = lastName  != null ? lastName.trim()  : "";
+        return (first + " " + last).trim();
+    }
+
+    /** Mutable run-scoped state threaded through the processing methods to avoid a long parameter list. */
     private static class RunContext {
         final String subject;
         final List<File> attachments;
         final Set<String> sentInThisRun = new HashSet<>();
-        final List<String> failedEmails = new ArrayList<>();
+        final List<String> failedEmails  = new ArrayList<>();
 
-        int totalRecipients  = 0;
-        int emailsSent       = 0;
-        int rowsSkipped      = 0;
-        int duplicatesSkipped = 0;
+        int totalEmailAddresses = 0;
+        int emailsSent          = 0;
+        int itemsSkipped        = 0;
+        int duplicatesSkipped   = 0;
 
         RunContext(String subject, List<File> attachments) {
             this.subject     = subject;
