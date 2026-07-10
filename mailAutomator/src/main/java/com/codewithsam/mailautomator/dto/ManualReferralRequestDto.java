@@ -14,7 +14,6 @@ public class ManualReferralRequestDto {
     @NotBlank(message = "companyName is required")
     private String companyName;
 
-    @NotBlank(message = "jobId is required")
     private String jobId;
 
     @NotBlank(message = "jobLink is required")

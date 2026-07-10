@@ -92,7 +92,11 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
 
     private String buildSubject(ReferralRequestDto request) {
         return switch (request.getTemplateType()) {
-            case REFERRAL         -> "Referral Request - " + request.getCompanyName() + " | Job ID: " + request.getJobId();
+            case REFERRAL -> {
+                String base = "Referral Request - " + request.getCompanyName();
+                String jobId = request.getJobId();
+                yield (jobId != null && !jobId.isBlank()) ? base + " | Job ID: " + jobId : base;
+            }
             case INTERNAL_OPENING -> "Internal Openings Enquiry - " + request.getCompanyName();
         };
     }
@@ -110,7 +114,9 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
             log.info("[DRY RUN MODE] No emails will be sent");
         }
 
-        String subject = "Referral Request - " + request.getCompanyName() + " | Job ID: " + request.getJobId();
+        String jobId = request.getJobId();
+        String subject = "Referral Request - " + request.getCompanyName()
+                + (jobId != null && !jobId.isBlank() ? " | Job ID: " + jobId : "");
         RunContext ctx = new RunContext(subject, resolveAttachments());
 
         for (RecipientDto recipient : request.getRecipients()) {

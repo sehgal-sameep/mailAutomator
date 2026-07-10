@@ -44,14 +44,18 @@ public class TemplateServiceImpl implements TemplateService {
         String templatePath = resolveTemplatePath(templateType);
         String templateContent = loadTemplate(templatePath);
 
-        Map<String, String> variables = new HashMap<>();
-        variables.put("firstName",   firstName  != null ? firstName  : "");
-        variables.put("lastName",    lastName   != null ? lastName   : "");
-        variables.put("companyName", companyName != null ? companyName : "");
-        variables.put("jobId",       jobId      != null ? jobId      : "");
-        variables.put("jobLink",     jobLink    != null ? jobLink    : "");
+        boolean hasJobId = jobId != null && !jobId.isBlank();
 
-        return TemplateRenderer.render(templateContent, variables);
+        Map<String, String> variables = new HashMap<>();
+        variables.put("firstName",   firstName   != null ? firstName.trim()   : "");
+        variables.put("lastName",    lastName    != null ? lastName.trim()    : "");
+        variables.put("companyName", companyName != null ? companyName.trim() : "");
+        variables.put("jobLink",     jobLink     != null ? jobLink.trim()     : "");
+        variables.put("jobIdLine",   hasJobId    ? "Job ID: " + jobId.trim() : "");
+
+        String rendered = TemplateRenderer.render(templateContent, variables);
+        // collapse 3+ consecutive newlines (left by an empty optional line) down to 2
+        return rendered.replaceAll("(\r?\n)([ \t]*\r?\n){2,}", "$1\n");
     }
 
     private String resolveTemplatePath(TemplateType type) {

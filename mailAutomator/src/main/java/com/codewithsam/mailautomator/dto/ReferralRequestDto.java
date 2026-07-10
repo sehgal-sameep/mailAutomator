@@ -28,11 +28,10 @@ public class ReferralRequestDto {
     @NotBlank(message = "tabName is required")
     private String tabName;
 
-    @AssertTrue(message = "jobId and jobLink are required when templateType is REFERRAL")
+    @AssertTrue(message = "jobLink is required when templateType is REFERRAL")
     private boolean isJobDetailsValidForTemplateType() {
         if (TemplateType.REFERRAL.equals(templateType)) {
-            return jobId != null && !jobId.isBlank()
-                    && jobLink != null && !jobLink.isBlank();
+            return jobLink != null && !jobLink.isBlank();
         }
         return true;
     }
