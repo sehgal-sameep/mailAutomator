@@ -25,6 +25,85 @@ No restart needed to target a different company or job — all details are passe
 
 ---
 
+## Requirements
+
+| Requirement | Version / Notes |
+|---|---|
+| Java (JDK) | 17 (see `java.version` in `pom.xml`) |
+| Spring Boot | 4.1.0 (parent POM) |
+| Build tool | Maven — no local install needed, use the bundled wrapper (`./mvnw` / `mvnw.cmd`) |
+| Google Sheets API client | `google-api-client` 2.2.0, `google-api-services-sheets` v4-rev20240423-2.0.0 |
+| Google Auth library | `google-auth-library-oauth2-http` 1.24.0 |
+| API docs UI | springdoc-openapi 2.8.4 (Swagger UI) |
+| Gmail account | With 2‑Step Verification enabled, for generating an App Password |
+| Google Cloud project | With the Sheets API enabled and a Service Account JSON key |
+
+---
+
+## Running the Application
+
+1. **Clone and open the project**
+   ```bash
+   cd mailAutomator
+   ```
+
+2. **Place required files** next to `pom.xml`:
+   - `google-service-account.json` — the GCP service account key (see [Gmail & Google API Setup](#gmail--google-api-setup) below)
+   - Resume and cover letter PDFs (paths are configured via `RESUME_PATH` / `COVER_LETTER_PATH`, default under `application.yml`)
+
+3. **Set required environment variables** (or leave the defaults in `application.yml` for local/dev use):
+   ```bash
+   export GMAIL_SENDER_EMAIL=you@gmail.com
+   export GMAIL_APP_PASSWORD=your-app-password
+   export GOOGLE_SERVICE_ACCOUNT_KEY_PATH=google-service-account.json
+   ```
+
+4. **Build the project**
+   ```bash
+   ./mvnw clean package
+   ```
+   (Windows: `mvnw.cmd clean package`)
+
+5. **Run the application**
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+   or run the packaged jar directly:
+   ```bash
+   java -jar target/mailAutomator-0.0.1-SNAPSHOT.jar
+   ```
+
+6. The application starts on **port 8082** (configurable via `server.port` in `application.yml`).
+
+---
+
+## Using Swagger UI to Make API Calls
+
+Once the application is running, open the interactive API docs in a browser:
+
+```
+http://localhost:8082/swagger-ui/index.html
+```
+
+Steps to send a test request:
+
+1. Open the URL above — you'll see the **Referrals** tag with the two endpoints: `POST /referrals/send` and `POST /referrals/send/manual`.
+2. Click on an endpoint to expand it, then click **Try it out**.
+3. Edit the example JSON request body shown (see [API Reference](#api-reference) above for full field details and sample payloads for both endpoints).
+4. Click **Execute**.
+5. Swagger UI displays:
+   - The actual `curl` command it sent
+   - The HTTP response status and body (e.g. a `ReferralSummaryDto`/`ManualReferralSummaryDto` on success, or `fieldErrors` on a `400` validation failure)
+
+Tip: set `email.dry-run: true` (or `DRY_RUN=true`) before testing through Swagger so you can verify recipients and rendered behavior in the logs without actually sending any emails — see [Dry-Run Mode](#dry-run-mode).
+
+The raw OpenAPI spec (JSON) is also available at:
+```
+http://localhost:8082/v3/api-docs
+```
+
+---
+
 ## Project Architecture
 
 ```
