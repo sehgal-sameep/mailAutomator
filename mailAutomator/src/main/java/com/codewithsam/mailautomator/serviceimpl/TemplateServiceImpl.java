@@ -45,12 +45,13 @@ public class TemplateServiceImpl implements TemplateService {
         String templateContent = loadTemplate(templatePath);
 
         boolean hasJobId = jobId != null && !jobId.isBlank();
+        boolean hasJobLink = jobLink != null && !jobLink.isBlank();
 
         Map<String, String> variables = new HashMap<>();
         variables.put("firstName",   firstName   != null ? firstName.trim()   : "");
         variables.put("lastName",    lastName    != null ? lastName.trim()    : "");
         variables.put("companyName", companyName != null ? companyName.trim() : "");
-        variables.put("jobLink",     jobLink     != null ? jobLink.trim()     : "");
+        variables.put("jobLinkLine", hasJobLink  ? "Job Link: " + jobLink.trim() : "");
         variables.put("jobIdLine",   hasJobId    ? "Job ID: " + jobId.trim() : "");
 
         String rendered = TemplateRenderer.render(templateContent, variables);
