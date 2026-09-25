@@ -6,7 +6,7 @@ Well, that someone is me.
 
 Destiny had its plans, and I had mine. I didn't let my college name define what I could achieve. Instead, I focused on building the skills and experience that speak for themselves.
 
-Today, I am a Software Engineer with 1.5 years of experience in Java backend development, working with Spring Boot, PostgreSQL, Kafka, Redis, AWS, Docker, and GenAI. This journey has also earned me Monthly Employee and Quarterly High Flyer Awards.
+Today, I am a Software Engineer with 1.5+ years of experience in Java backend development, working with Spring Boot, PostgreSQL, Kafka, Redis, AWS, Docker, and GenAI. This journey has also earned me Monthly Employee and Quarterly High Flyer Awards.
 
 I wanted to reach out and check if there are any suitable internal openings at {{companyName}} that align with my profile. I would greatly appreciate it if you could refer me for any relevant positions, forward my profile to the recruiter, or connect me with the hiring manager.
 
