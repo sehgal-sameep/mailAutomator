@@ -159,7 +159,8 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
         String body = emailProperties.isDryRun() ? null
                 : templateService.render(recipient.getFirstName(), recipient.getLastName(),
                                          request.getCompanyName(), request.getJobId(),
-                                         request.getJobLink(), TemplateType.REFERRAL);
+                                         request.getJobLink(), request.getLocations(),
+                                         TemplateType.REFERRAL);
 
         for (String email : validAddresses) {
             dispatchEmail(email, fullName, body, ctx);

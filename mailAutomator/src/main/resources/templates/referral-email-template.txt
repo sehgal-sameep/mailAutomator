@@ -12,6 +12,7 @@ I came across the Software Engineer opening at {{companyName}} and found it stro
 
 {{jobLinkLine}}
 {{jobIdLine}}
+{{locationLine}}
 
 I would greatly appreciate it if you could refer me for this position, forward my profile to the recruiter, or connect me with the hiring manager.
 

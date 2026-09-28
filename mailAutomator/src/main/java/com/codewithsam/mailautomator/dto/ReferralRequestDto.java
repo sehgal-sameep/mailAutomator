@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class ReferralRequestDto {
 
@@ -18,6 +20,9 @@ public class ReferralRequestDto {
 
     /** Optional. Must be a valid URL when provided. */
     private String jobLink;
+
+    /** Optional. One or more locations, rendered as a "Location(s): ..." line in the referral template. */
+    private List<String> locations;
 
     @NotBlank(message = "sheetId is required")
     private String sheetId;

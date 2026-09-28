@@ -18,6 +18,9 @@ public class ManualReferralRequestDto {
 
     private String jobLink;
 
+    /** Optional. One or more locations, rendered as a "Location(s): ..." line in the referral template. */
+    private List<String> locations;
+
     @NotEmpty(message = "recipients must not be empty")
     @Valid
     private List<RecipientDto> recipients;

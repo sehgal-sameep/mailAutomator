@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -34,18 +35,25 @@ public class TemplateServiceImpl implements TemplateService {
                 request.getCompanyName(),
                 request.getJobId(),
                 request.getJobLink(),
+                request.getLocations(),
                 request.getTemplateType()
         );
     }
 
     @Override
     public String render(String firstName, String lastName, String companyName,
-                         String jobId, String jobLink, TemplateType templateType) {
+                         String jobId, String jobLink, List<String> locations,
+                         TemplateType templateType) {
         String templatePath = resolveTemplatePath(templateType);
         String templateContent = loadTemplate(templatePath);
 
         boolean hasJobId = jobId != null && !jobId.isBlank();
         boolean hasJobLink = jobLink != null && !jobLink.isBlank();
+        List<String> cleanLocations = locations == null ? List.of() : locations.stream()
+                .filter(l -> l != null && !l.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
 
         Map<String, String> variables = new HashMap<>();
         variables.put("firstName",   firstName   != null ? firstName.trim()   : "");
@@ -53,6 +61,11 @@ public class TemplateServiceImpl implements TemplateService {
         variables.put("companyName", companyName != null ? companyName.trim() : "");
         variables.put("jobLinkLine", hasJobLink  ? "Job Link: " + jobLink.trim() : "");
         variables.put("jobIdLine",   hasJobId    ? "Job ID: " + jobId.trim() : "");
+        variables.put("locationLine", switch (cleanLocations.size()) {
+            case 0  -> "";
+            case 1  -> "Location: " + cleanLocations.get(0);
+            default -> "Locations: " + String.join(", ", cleanLocations);
+        });
 
         String rendered = TemplateRenderer.render(templateContent, variables);
         // collapse 3+ consecutive newlines (left by an empty optional line) down to 2
