@@ -35,7 +35,7 @@ public class ReferralController {
 
             **Mandatory:** `companyName`, `templateType` (`REFERRAL` | `INTERNAL_OPENING`), `sheetId`, `tabName`
 
-            **Optional:** `jobId`, `jobLink` (must start with `http://` or `https://`), `locations` (array of one or more strings) — each is rendered as its own line only when provided (one location → `Location: X`, several → `Locations: X, Y`), and only in the `REFERRAL` template (`INTERNAL_OPENING` ignores them). `jobId` is also appended to the subject.
+            **Optional:** `jobs` — array of openings, each with optional `roleTitle`, `jobId`, `jobLink` (must start with `http://` or `https://`) and `locations` (array of strings). All openings go into a single email: one opening → the intro names its role and its details follow as lines; several → a numbered list, one block per opening. Fields render only when provided (one location → `Location: X`, several → `Locations: X, Y`), and only in the `REFERRAL` template (`INTERNAL_OPENING` ignores them). Job IDs are appended to the subject.
 
             **Examples**
 
@@ -43,13 +43,13 @@ public class ReferralController {
             ```json
             { "companyName": "Acme", "templateType": "REFERRAL", "sheetId": "<sheet-id>", "tabName": "Sheet1" }
             ```
-            With job ID only:
+            Single opening:
             ```json
-            { "companyName": "Acme", "templateType": "REFERRAL", "jobId": "12345", "sheetId": "<sheet-id>", "tabName": "Sheet1" }
+            { "companyName": "Acme", "templateType": "REFERRAL", "jobs": [ { "roleTitle": "Backend Engineer", "jobId": "12345" } ], "sheetId": "<sheet-id>", "tabName": "Sheet1" }
             ```
-            All job details:
+            Multiple openings:
             ```json
-            { "companyName": "Acme", "templateType": "REFERRAL", "jobId": "12345", "jobLink": "https://acme.com/jobs/12345", "locations": ["Bangalore", "Pune"], "sheetId": "<sheet-id>", "tabName": "Sheet1" }
+            { "companyName": "Acme", "templateType": "REFERRAL", "jobs": [ { "roleTitle": "Backend Engineer", "jobId": "12345", "jobLink": "https://acme.com/jobs/12345", "locations": ["Bangalore", "Pune"] }, { "roleTitle": "Software Engineer II", "jobId": "67890", "jobLink": "https://acme.com/jobs/67890" } ], "sheetId": "<sheet-id>", "tabName": "Sheet1" }
             ```
             Internal openings enquiry:
             ```json
@@ -64,7 +64,8 @@ public class ReferralController {
     )
     @PostMapping("/send")
     public ResponseEntity<ReferralSummaryDto> sendReferrals(@RequestBody @Valid ReferralRequestDto request) {
-        log.info("POST /referrals/send — company={}, jobId={}", request.getCompanyName(), request.getJobId());
+        log.info("POST /referrals/send — company={}, jobs={}", request.getCompanyName(),
+                request.getJobs() == null ? 0 : request.getJobs().size());
         ReferralSummaryDto summary = referralManager.orchestrateSendReferrals(request);
         return ResponseEntity.ok(summary);
     }
@@ -76,7 +77,7 @@ public class ReferralController {
 
             **Mandatory:** `companyName`, `recipients` (non-empty; each needs `firstName` and at least one entry in `emails`)
 
-            **Optional:** `jobId`, `jobLink` (must start with `http://` or `https://`), `locations` (array of one or more strings), and per-recipient `lastName`. Job fields are rendered as their own lines only when provided (one location → `Location: X`, several → `Locations: X, Y`); `jobId` is also appended to the subject.
+            **Optional:** `jobs` — array of openings, each with optional `roleTitle`, `jobId`, `jobLink` (must start with `http://` or `https://`) and `locations` (array of strings) — and per-recipient `lastName`. All openings go into a single email (several → a numbered list); fields render only when provided. Job IDs are appended to the subject.
 
             **Examples**
 
@@ -84,13 +85,13 @@ public class ReferralController {
             ```json
             { "companyName": "Acme", "recipients": [ { "firstName": "Priya", "emails": ["priya@acme.com"] } ] }
             ```
-            With job link and a single location:
+            Single opening:
             ```json
-            { "companyName": "Acme", "jobLink": "https://acme.com/jobs/12345", "locations": ["Bangalore"], "recipients": [ { "firstName": "Priya", "emails": ["priya@acme.com"] } ] }
+            { "companyName": "Acme", "jobs": [ { "roleTitle": "Backend Engineer", "jobLink": "https://acme.com/jobs/12345", "locations": ["Bangalore"] } ], "recipients": [ { "firstName": "Priya", "emails": ["priya@acme.com"] } ] }
             ```
-            All fields, multiple recipients:
+            Multiple openings, multiple recipients:
             ```json
-            { "companyName": "Acme", "jobId": "12345", "jobLink": "https://acme.com/jobs/12345", "locations": ["Bangalore", "Pune"], "recipients": [ { "firstName": "Priya", "lastName": "Sharma", "emails": ["priya@acme.com", "priya.s@gmail.com"] }, { "firstName": "Rahul", "emails": ["rahul@acme.com"] } ] }
+            { "companyName": "Acme", "jobs": [ { "roleTitle": "Backend Engineer", "jobId": "12345", "jobLink": "https://acme.com/jobs/12345", "locations": ["Bangalore", "Pune"] }, { "roleTitle": "Software Engineer II", "jobId": "67890" } ], "recipients": [ { "firstName": "Priya", "lastName": "Sharma", "emails": ["priya@acme.com", "priya.s@gmail.com"] }, { "firstName": "Rahul", "emails": ["rahul@acme.com"] } ] }
             ```
             """,
         responses = {
@@ -101,8 +102,9 @@ public class ReferralController {
     )
     @PostMapping("/send/manual")
     public ResponseEntity<ManualReferralSummaryDto> sendReferralsManual(@RequestBody @Valid ManualReferralRequestDto request) {
-        log.info("POST /referrals/send/manual — company={}, jobId={}, recipients={}",
-                request.getCompanyName(), request.getJobId(), request.getRecipients().size());
+        log.info("POST /referrals/send/manual — company={}, jobs={}, recipients={}",
+                request.getCompanyName(), request.getJobs() == null ? 0 : request.getJobs().size(),
+                request.getRecipients().size());
         ManualReferralSummaryDto summary = referralManager.orchestrateSendReferralsManual(request);
         return ResponseEntity.ok(summary);
     }

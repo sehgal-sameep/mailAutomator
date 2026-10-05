@@ -133,8 +133,7 @@ These values change per job opening and are sent in the request body — no rest
 | Field | Description |
 |---|---|
 | `companyName` | Company name used in email subject and template |
-| `jobId` | Job posting ID used in email subject and template |
-| `jobLink` | Full URL to the job posting used in template |
+| `jobs` | Optional array of openings (`roleTitle`, `jobId`, `jobLink`, `locations`) — all listed in one email; job IDs go in the subject |
 | `sheetId` | Google Sheet spreadsheet ID |
 | `tabName` | Sheet tab name containing the contacts |
 
@@ -198,8 +197,19 @@ Reads contacts from the given Google Sheet tab and sends personalized referral e
 {
   "companyName": "AcmeCorp",
   "templateType": "REFERRAL",
-  "jobId": "JR-123456",
-  "jobLink": "https://careers.acmecorp.com/job/123456",
+  "jobs": [
+    {
+      "roleTitle": "Backend Engineer",
+      "jobId": "JR-123456",
+      "jobLink": "https://careers.acmecorp.com/job/123456",
+      "locations": ["Bangalore", "Pune"]
+    },
+    {
+      "roleTitle": "Software Engineer II",
+      "jobId": "JR-123789",
+      "jobLink": "https://careers.acmecorp.com/job/123789"
+    }
+  ],
   "sheetId": "your-google-spreadsheet-id",
   "tabName": "acmecorp_emails"
 }
@@ -222,8 +232,11 @@ Reads contacts from the given Google Sheet tab and sends personalized referral e
 |---|---|
 | `companyName` | Required, not blank |
 | `templateType` | Required — `REFERRAL` or `INTERNAL_OPENING` |
-| `jobId` | Required when `templateType` is `REFERRAL`; ignored for `INTERNAL_OPENING` |
-| `jobLink` | Required when `templateType` is `REFERRAL`; must be a valid URL; ignored for `INTERNAL_OPENING` |
+| `jobs` | Optional; ignored for `INTERNAL_OPENING` |
+| `jobs[].roleTitle` | Optional; defaults to `Software Engineer` in the email |
+| `jobs[].jobId` | Optional |
+| `jobs[].jobLink` | Optional; must be a valid URL starting with `http://` or `https://` |
+| `jobs[].locations` | Optional array of strings |
 | `sheetId` | Required, not blank |
 | `tabName` | Required, not blank |
 
@@ -260,8 +273,13 @@ Sends referral emails to recipients supplied directly in the request body. No Go
 ```json
 {
   "companyName": "Mastercard",
-  "jobId": "R-123456",
-  "jobLink": "https://careers.mastercard.com/job/example",
+  "jobs": [
+    {
+      "roleTitle": "Software Engineer II",
+      "jobId": "R-123456",
+      "jobLink": "https://careers.mastercard.com/job/example"
+    }
+  ],
   "recipients": [
     {
       "firstName": "Vidushi",
@@ -286,8 +304,7 @@ Sends referral emails to recipients supplied directly in the request body. No Go
 | Field | Rule |
 |---|---|
 | `companyName` | Required, not blank |
-| `jobId` | Required, not blank |
-| `jobLink` | Required; must be a valid URL starting with `http://` or `https://` |
+| `jobs` | Optional; same per-job fields and rules as sheet mode |
 | `recipients` | Required; must not be empty |
 | `recipients[].firstName` | Required, not blank |
 | `recipients[].lastName` | Optional |
@@ -323,7 +340,7 @@ Individual email addresses with invalid format are silently skipped (counted in 
 {
   "error": "Validation failed",
   "fieldErrors": {
-    "jobLink": "jobLink must be a valid URL starting with http:// or https://"
+    "jobs[0].jobLinkValid": "jobLink must be a valid URL starting with http:// or https://"
   }
 }
 ```
@@ -343,8 +360,10 @@ curl -X POST http://localhost:8082/referrals/send \
   -d '{
     "companyName": "AcmeCorp",
     "templateType": "REFERRAL",
-    "jobId": "JR-100",
-    "jobLink": "https://careers.acmecorp.com/job/100",
+    "jobs": [
+      { "roleTitle": "Backend Engineer", "jobId": "JR-100", "jobLink": "https://careers.acmecorp.com/job/100" },
+      { "roleTitle": "Platform Engineer", "jobId": "JR-101", "jobLink": "https://careers.acmecorp.com/job/101" }
+    ],
     "sheetId": "sheet-id-for-acmecorp",
     "tabName": "acmecorp_emails"
   }'
@@ -356,8 +375,7 @@ curl -X POST http://localhost:8082/referrals/send/manual \
   -H "Content-Type: application/json" \
   -d '{
     "companyName": "TechCorp",
-    "jobId": "TC-999",
-    "jobLink": "https://jobs.techcorp.io/999",
+    "jobs": [ { "roleTitle": "Backend Engineer", "jobId": "TC-999", "jobLink": "https://jobs.techcorp.io/999" } ],
     "recipients": [
       {
         "firstName": "Alice",
@@ -457,7 +475,7 @@ The template used is selected automatically based on `templateType` in the reque
 
 | `templateType` | Template file | Email subject |
 |---|---|---|
-| `REFERRAL` | `templates/referral-email-template.txt` | `Referral Request - <companyName> \| Job ID: <jobId>` |
+| `REFERRAL` | `templates/referral-email-template.txt` | `Referral Request - <companyName> \| Job ID: <jobId>` (several → `Job IDs: <id1>, <id2>`) |
 | `INTERNAL_OPENING` | `templates/internal-opening-email-template.txt` | `Internal Openings Enquiry - <companyName>` |
 
 **Supported placeholders (both templates):**
@@ -467,8 +485,9 @@ The template used is selected automatically based on `templateType` in the reque
 | `{{firstName}}` | Contact's first name |
 | `{{lastName}}` | Contact's last name |
 | `{{companyName}}` | From request payload |
-| `{{jobId}}` | From request payload — blank for `INTERNAL_OPENING` |
-| `{{jobLink}}` | From request payload — blank for `INTERNAL_OPENING` |
+| `{{openingsLine}}` | Intro sentence — names the role for one opening, introduces a list for several (`REFERRAL` only) |
+| `{{jobDetails}}` | Job details — plain lines for one opening, numbered blocks for several; blank when no `jobs` (`REFERRAL` only) |
+| `{{positionText}}` | `this position` or `these positions` (`REFERRAL` only) |
 
 To override template paths, set `REFERRAL_TEMPLATE_PATH` or `INTERNAL_OPENING_TEMPLATE_PATH` to any filesystem path.
 

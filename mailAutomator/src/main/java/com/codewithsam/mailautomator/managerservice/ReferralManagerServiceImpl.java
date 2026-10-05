@@ -2,6 +2,7 @@ package com.codewithsam.mailautomator.managerservice;
 
 import com.codewithsam.mailautomator.config.EmailProperties;
 import com.codewithsam.mailautomator.dto.ContactDto;
+import com.codewithsam.mailautomator.dto.JobOpeningDto;
 import com.codewithsam.mailautomator.dto.ManualReferralRequestDto;
 import com.codewithsam.mailautomator.dto.ManualReferralSummaryDto;
 import com.codewithsam.mailautomator.dto.RecipientDto;
@@ -39,8 +40,8 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
 
     @Override
     public ReferralSummaryDto sendReferralEmails(ReferralRequestDto request) {
-        log.info("Starting referral email process — company: {}, jobId: {}, sheet: {}/{}",
-                request.getCompanyName(), request.getJobId(), request.getSheetId(), request.getTabName());
+        log.info("Starting referral email process — company: {}, jobIds: {}, sheet: {}/{}",
+                request.getCompanyName(), jobIds(request.getJobs()), request.getSheetId(), request.getTabName());
 
         List<ContactDto> contacts = contactReaderService.readContacts(request.getSheetId(), request.getTabName());
         log.info("Total contacts loaded: {}", contacts.size());
@@ -92,11 +93,7 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
 
     private String buildSubject(ReferralRequestDto request) {
         return switch (request.getTemplateType()) {
-            case REFERRAL -> {
-                String base = "Referral Request - " + request.getCompanyName();
-                String jobId = request.getJobId();
-                yield (jobId != null && !jobId.isBlank()) ? base + " | Job ID: " + jobId : base;
-            }
+            case REFERRAL -> buildReferralSubject(request.getCompanyName(), request.getJobs());
             case INTERNAL_OPENING -> "Internal Openings Enquiry - " + request.getCompanyName();
         };
     }
@@ -107,16 +104,14 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
 
     @Override
     public ManualReferralSummaryDto sendReferralEmailsManual(ManualReferralRequestDto request) {
-        log.info("Starting manual referral email process — company: {}, jobId: {}, recipients: {}",
-                request.getCompanyName(), request.getJobId(), request.getRecipients().size());
+        log.info("Starting manual referral email process — company: {}, jobIds: {}, recipients: {}",
+                request.getCompanyName(), jobIds(request.getJobs()), request.getRecipients().size());
 
         if (emailProperties.isDryRun()) {
             log.info("[DRY RUN MODE] No emails will be sent");
         }
 
-        String jobId = request.getJobId();
-        String subject = "Referral Request - " + request.getCompanyName()
-                + (jobId != null && !jobId.isBlank() ? " | Job ID: " + jobId : "");
+        String subject = buildReferralSubject(request.getCompanyName(), request.getJobs());
         RunContext ctx = new RunContext(subject, resolveAttachments());
 
         for (RecipientDto recipient : request.getRecipients()) {
@@ -158,8 +153,7 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
 
         String body = emailProperties.isDryRun() ? null
                 : templateService.render(recipient.getFirstName(), recipient.getLastName(),
-                                         request.getCompanyName(), request.getJobId(),
-                                         request.getJobLink(), request.getLocations(),
+                                         request.getCompanyName(), request.getJobs(),
                                          TemplateType.REFERRAL);
 
         for (String email : validAddresses) {
@@ -170,6 +164,25 @@ public class ReferralManagerServiceImpl implements ReferralManagerService {
     // -------------------------------------------------------------------------
     // Shared helpers
     // -------------------------------------------------------------------------
+
+    private static String buildReferralSubject(String companyName, List<JobOpeningDto> jobs) {
+        String base = "Referral Request - " + companyName;
+        List<String> ids = jobIds(jobs);
+        return switch (ids.size()) {
+            case 0  -> base;
+            case 1  -> base + " | Job ID: " + ids.get(0);
+            default -> base + " | Job IDs: " + String.join(", ", ids);
+        };
+    }
+
+    private static List<String> jobIds(List<JobOpeningDto> jobs) {
+        if (jobs == null) return List.of();
+        return jobs.stream()
+                .filter(j -> j != null && j.getJobId() != null && !j.getJobId().isBlank())
+                .map(j -> j.getJobId().trim())
+                .distinct()
+                .toList();
+    }
 
     private void dispatchEmail(String email, String contactName, String body, RunContext ctx) {
         String key = email.toLowerCase();
